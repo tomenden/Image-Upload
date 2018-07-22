@@ -1,0 +1,7 @@
+{
+  "env": {
+    "WMP_DOMAIN": "@wmp_domain",
+    "WMP_APPID": "@wmp_appid",
+    "WMP_SHARED_SECRET": "@wmp_shared_secret"
+  }
+}
