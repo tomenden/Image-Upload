@@ -64,21 +64,32 @@ app.post('/upload2', upload.array('images'), async function (req, res) {
         originalFiles.forEach(file => fs.unlinkSync(file.path))
         const filesToUpload = fs.readdirSync(nowTempFolder)
         await Promise.all(filesToUpload.map(fileName => {
-            return mediaPlatform.fileManager.uploadFile(`/${gameId}/${fileName}`, `./${nowTempFolder}/${fileName}`)
+            if (fileName !== '.keep') {
+                return mediaPlatform.fileManager.uploadFile(`/${gameId}/${fileName}`, `./${nowTempFolder}/${fileName}`)
+            }
         }))
         // cleanup
-        fs.readdirSync('tmp').forEach(fileName => fs.unlinkSync(path.join(__dirname, 'tmp', fileName)))
+        fs.readdirSync('tmp').forEach(fileName => {
+            if (fileName !== '.keep') {
+                fs.unlinkSync(path.join(__dirname, 'tmp', fileName))
+            }
+        })
 
         res.status(204).send(`gameId: ${gameId}`)
     } catch (e) {
         // cleanup
-        fs.readdirSync('tmp').forEach(fileName => fs.unlinkSync(path.join(__dirname, 'tmp', fileName)))
+        fs.readdirSync('tmp').forEach(fileName => {
+            if (fileName !== '.keep') {
+                fs.unlinkSync(path.join(__dirname, 'tmp', fileName))
+            }
+        }
+        )
         console.log(e)
         res.status(204).send(`error: ${e}`)
     }
-    
+
 })
- 
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
 app.listen(process.env.PORT || 3000);
