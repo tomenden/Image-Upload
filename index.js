@@ -8,7 +8,6 @@ const watermark = require('dynamic-watermark')
 const HAPOEL_KATAMON_IMG_PATH = 'Hapoel_Katamon_FC.png'
 const fs = require('fs')
 
-
 // // load env from now.json
 require('now-env');
 require('isomorphic-fetch');
@@ -19,31 +18,6 @@ app.use(bodyParser.json());
 
 const MediaPlatform = require('media-platform-js-sdk').MediaPlatform;
 
-
-app.get('/media-platform/auth-header', function (req, res) {
-    /**
-     * @description by default, the header authenticates the application
-     * @type {{Authorization}}
-     */
-
-    const mediaPlatform = new MediaPlatform({
-        domain: process.env.WMP_DOMAIN,
-        appId: process.env.WMP_APP_ID,
-        sharedSecret: process.env.WMP_SHARED_SECRET
-    });
-
-    global.mediaPlatform = mediaPlatform
-    const header = mediaPlatform.getAuthorizationHeader();
-
-    res.send(header);
-});
-
-
-const upload = multer({dest: nowTempFolder})
-
-
-
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
 
 function embedWatermark(file) {
@@ -71,79 +45,40 @@ function embedWatermark(file) {
     return promise
 }
 
-debugger
 
-app.post('/upload2', upload.array('images'), function (req, res) {
-    debugger
+
+const upload = multer({ dest: nowTempFolder })
+app.post('/upload2', upload.array('images'), async function (req, res) {
     const gameId = req.body.gameId
-    const files = req.files
-    /*
-    File:
-        {
-          "fieldname": "images",
-          "originalname": "2018-06-12_1343.png",
-          "encoding": "7bit",
-          "mimetype": "image/png",
-          "destination": "./tmp",
-          "filename": "309ad2251564705f69c8fdff1a97c994",
-          "path": "tmp/309ad2251564705f69c8fdff1a97c994",
-          "size": 297084
-        }
-    * */
-
+    const originalFiles = req.files
 
     const mediaPlatform = new MediaPlatform({
         domain: process.env.WMP_DOMAIN,
-        appId: process.env.WMP_APP_ID,
+        appId: process.env.WMP_APPID,
         sharedSecret: process.env.WMP_SHARED_SECRET
     })
 
-    Promise.all(files.map(embedWatermark))
-        .then(x => files.map(file => fs.unlinkSync(file.path)))
-        .then(() => Promise.all(
-            fs.readdirSync('tmp')
-                .map(fileName => {
-                    mediaPlatform.fileManager.uploadFile(`/${gameId}/${fileName}`, `./tmp/${fileName}`)
-                })
-            )
-        )
-        .then(() => res.status(204).send(`gameId: ${gameId}`))
-        .catch(e => {
-            console.log(e)
-            res.status(204).send(e)
-        })
-})
 
-app.post('/upload', async function (req, res, next) {
-    const {mediaPlatform} = global
-    const {gameId, files} = req
+    try {
+        await Promise.all(originalFiles.map(embedWatermark))
+        originalFiles.forEach(file => fs.unlinkSync(file.path))
+        const filesToUpload = fs.readdirSync(nowTempFolder)
+        await Promise.all(filesToUpload.map(fileName => {
+            return mediaPlatform.fileManager.uploadFile(`/${gameId}/${fileName}`, `./${nowTempFolder}/${fileName}`)
+        }))
+        // cleanup
+        fs.readdirSync('tmp').forEach(fileName => fs.unlinkSync(path.join(__dirname, 'tmp', fileName)))
 
-
-    global.files = files
-
-    // upload.array(`${gameId}`)(req, res, next)
-
-    const hasDir = async (name) => (await mediaPlatform.fileManager.listFiles('/')).files
-        .filter(f => f.type === 'd')
-        .map(d => d.path)
-        .includes(`/${name}`)
-
-
-    const createDir = async (gameId) => {
-
+        res.status(204).send(`gameId: ${gameId}`)
+    } catch (e) {
+        // cleanup
+        fs.readdirSync('tmp').forEach(fileName => fs.unlinkSync(path.join(__dirname, 'tmp', fileName)))
+        console.log(e)
+        res.status(204).send(`error: ${e}`)
     }
-
-    // if(!await hasDir(gameId)){
-    //     createDir(gameId)
-    // }
-
-    // res.send('hello from upload!')
-
-});
-
-
-app.post('/temp_upload', upload.single('uploaded_file'), function (req, res) {
-    console.log(req.files)
-    res.redirect('/')
+    
 })
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
+
 app.listen(3000, () => console.log('Example app listening on port 3000!'))
