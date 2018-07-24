@@ -78,7 +78,7 @@ app.post('/upload2', upload.array('images'), async function (req, res) {
     }
     
 })
-
+ 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
 app.listen(process.env.PORT || 3000);
