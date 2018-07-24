@@ -81,4 +81,5 @@ app.post('/upload2', upload.array('images'), async function (req, res) {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')))
 
-app.listen(3000, () => console.log('Example app listening on port 3000!'))
+app.listen(process.env.PORT || 3000);
+console.log('listening on port ', process.env.PORT || 3000, '...');
